@@ -345,34 +345,33 @@ Sistem harus menyediakan informasi:
 
 ---
 
+
 # 5. ATURAN BISNIS
 
-| Kode | Aturan |
-|---|---|
-| BR-01 | Setiap catatan servis memiliki nomor unik. |
-| BR-02 | Satu catatan servis dapat memiliki beberapa perangkat. |
-| BR-03 | Setiap perangkat memiliki diagnosis, biaya, dan status sendiri. |
-| BR-04 | Perbaikan dilanjutkan setelah pelanggan menyetujui estimasi biaya. |
-| BR-05 | Biaya pemeriksaan tidak wajib. |
-| BR-06 | Pembayaran pemeriksaan bersifat sukarela. |
-| BR-07 | Biaya servis dicatat per perangkat. |
-| BR-08 | DP ditetapkan secara terpisah untuk setiap perangkat. |
-| BR-09 | DP dilakukan satu kali untuk setiap perangkat jika diperlukan. |
-| BR-10 | Pembatalan setelah DP dapat disertai pengembalian dana setelah dikurangi pengeluaran yang sudah terjadi. |
-| BR-11 | Pengembalian sisa DP dilakukan maksimal tujuh hari. |
-| BR-12 | Pelunasan dilakukan sesuai perangkat yang diambil atau kesepakatan pelanggan. |
-| BR-13 | Satu transaksi pembayaran dapat dialokasikan ke beberapa perangkat. |
-| BR-14 | Nota dibuat apabila diminta pelanggan. |
-| BR-15 | Garansi berlaku tujuh hari kalender sejak perangkat diserahkan. |
-| BR-16 | Kerusakan akibat petir tidak termasuk garansi. |
-| BR-17 | Batas pengambilan dihitung sejak pemberitahuan perangkat siap diambil. |
-| BR-18 | Bukti pemberitahuan pelanggan dapat disimpan dalam sistem. |
-| BR-19 | Barang yang melewati batas tiga bulan tidak lagi menjadi tanggung jawab tempat servis, termasuk apabila rusak atau hilang. |
-| BR-20 | Garansi barang yang melewati batas tiga bulan dinyatakan hangus. |
-| BR-21 | Urutan penerimaan menjadi dasar antrean, tetapi pekerjaan tertunda dapat dilewati. |
-| BR-22 | Pemilik usaha menjadi penanggung jawab utama pekerjaan. |
-| BR-23 | Pengambilan sebagian perangkat diperbolehkan. |
-| BR-24 | Pembayaran sekaligus diperbolehkan setelah biaya masing-masing perangkat diketahui. |
+- **BR-01:** Setiap catatan servis memiliki nomor unik.
+- **BR-02:** Satu catatan servis dapat memiliki beberapa perangkat.
+- **BR-03:** Setiap perangkat memiliki diagnosis, biaya, dan status sendiri.
+- **BR-04:** Perbaikan dilanjutkan setelah pelanggan menyetujui estimasi biaya.
+- **BR-05:** Biaya pemeriksaan tidak wajib.
+- **BR-06:** Pembayaran pemeriksaan bersifat sukarela.
+- **BR-07:** Biaya servis dicatat per perangkat.
+- **BR-08:** DP ditetapkan secara terpisah untuk setiap perangkat.
+- **BR-09:** DP dilakukan satu kali untuk setiap perangkat jika diperlukan.
+- **BR-10:** Pembatalan setelah DP dapat disertai pengembalian dana setelah dikurangi pengeluaran yang sudah terjadi.
+- **BR-11:** Pengembalian sisa DP dilakukan maksimal tujuh hari.
+- **BR-12:** Pelunasan dilakukan sesuai perangkat yang diambil atau kesepakatan pelanggan.
+- **BR-13:** Satu transaksi pembayaran dapat dialokasikan ke beberapa perangkat.
+- **BR-14:** Nota dibuat apabila diminta pelanggan.
+- **BR-15:** Garansi berlaku tujuh hari kalender sejak perangkat diserahkan.
+- **BR-16:** Kerusakan akibat petir tidak termasuk garansi.
+- **BR-17:** Batas pengambilan dihitung sejak pemberitahuan perangkat siap diambil.
+- **BR-18:** Bukti pemberitahuan pelanggan dapat disimpan dalam sistem.
+- **BR-19:** Barang yang melewati batas tiga bulan tidak lagi menjadi tanggung jawab tempat servis, termasuk apabila rusak atau hilang.
+- **BR-20:** Garansi barang yang melewati batas tiga bulan dinyatakan hangus.
+- **BR-21:** Urutan penerimaan menjadi dasar antrean, tetapi pekerjaan tertunda dapat dilewati.
+- **BR-22:** Pemilik usaha menjadi penanggung jawab utama pekerjaan.
+- **BR-23:** Pengambilan sebagian perangkat diperbolehkan.
+- **BR-24:** Pembayaran sekaligus diperbolehkan setelah biaya masing-masing perangkat diketahui.
 
 ---
 
