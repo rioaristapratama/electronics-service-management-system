@@ -29,7 +29,7 @@ Proyek ini dibangun berdasarkan proses bisnis nyata pada usaha jasa servis elekt
 
 ## Teknologi
 
-- **Backend:** PHP – Laravel
+- **Backend:** Laravel
 - **Database:** MySQL
 - **Frontend:** Blade + Bootstrap
 - **Version Control:** Git & GitHub
