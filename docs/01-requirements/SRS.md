@@ -3,9 +3,9 @@
 # Electronics Service Management System
 
 **Versi:** 1.2  
-**Status:** Final – Kebutuhan bisnis telah divalidasi  
+**Status:** Final
 **Jenis aplikasi:** Web-based Information System  
-**Backend:** PHP – Laravel  
+**Backend:** Laravel  
 **Database:** MySQL  
 **Frontend:** Blade + Bootstrap  
 **Version Control:** Git & GitHub
