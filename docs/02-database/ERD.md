@@ -6,7 +6,7 @@
 |---|---|
 | Nama Proyek | Electronics Service Management System |
 | Dokumen | Entity Relationship Diagram |
-| Versi | 1.0 |
+| Versi | 1.1 |
 | Referensi | SRS v1.3 |
 | Database | MySQL |
 | Backend | Laravel |
@@ -241,11 +241,11 @@ Aturan:
 - Biaya aktual dipisahkan dari estimasi biaya.
 - Foto menggunakan tipe BEFORE atau AFTER.
 - Foto AFTER wajib tersedia sebelum status menjadi SIAP_DIAMBIL.
-- service_item_components digunakan untuk mencatat kebutuhan dan penggunaan komponen.
-- service_item_costs digunakan sebagai sumber pencatatan nominal biaya aktual.
-- Harga komponen tidak boleh dihitung dua kali dalam total biaya servis.
+- service_item_components digunakan untuk mencatat kebutuhan, jumlah, dan status penggunaan komponen.
+- service_item_costs menjadi sumber pencatatan nominal biaya aktual.
+- Nominal biaya komponen hanya boleh diperhitungkan satu kali dalam total biaya aktual.
+- Jika biaya komponen sudah dicatat pada service_item_costs, sistem tidak boleh menghitungnya kembali dari service_item_components.
 - Setiap biaya aktual harus memiliki jenis biaya, deskripsi, nominal, dan pengguna yang mencatat.
-
 
 Diagram:
 
@@ -327,7 +327,11 @@ Aturan:
 - Klaim yang dilaporkan selama masa garansi tetap valid meskipun pemeriksaan dilakukan setelah masa garansi.
 - Penyerahan kepada pihak ketiga membutuhkan izin pelanggan.
 - Setiap notifikasi memiliki status PENDING, SENT, atau FAILED.
-- Status SENT menandakan notifikasi berhasil disampaikan kepada pelanggan.
+- Status SENT menandakan pengiriman berhasil dilakukan oleh layanan pengiriman.
+- attempted_at mencatat waktu percobaan pengiriman.
+- delivered_at mencatat waktu keberhasilan penyampaian berdasarkan konfirmasi yang tersedia dari layanan pengiriman.
+- Jika layanan pengiriman tidak menyediakan konfirmasi penerimaan, sistem tidak boleh menganggap pesan sudah benar-benar diterima pelanggan.
+- Perhitungan batas waktu pengambilan menggunakan waktu keberhasilan pengiriman yang dapat diverifikasi.
 - Waktu percobaan pengiriman dan waktu keberhasilan pengiriman dicatat secara terpisah.
 - Batas waktu pengambilan perangkat dihitung berdasarkan keberhasilan penyampaian notifikasi, bukan waktu notifikasi dibuat.
 - Penyerahan kepada pihak ketiga harus memiliki bukti izin dari pelanggan.
@@ -418,7 +422,9 @@ Kolom atau kombinasi berikut harus unik:
 - Nilai uang menggunakan DECIMAL, bukan FLOAT.
 - Biaya aktual dibedakan dari estimasi.
 - Biaya komponen tidak boleh dihitung dua kali.
-- Garansi hanya diberikan untuk perbaikan yang memenuhi syarat.
+- Garansi hanya dapat diterbitkan untuk perangkat yang telah selesai diperbaiki dan memenuhi ketentuan garansi.
+- Hasil pengerjaan SUCCESS menjadi salah satu syarat kelayakan garansi.
+- Perangkat dengan hasil pengerjaan FAILED tidak otomatis memperoleh garansi perbaikan.
 - Masa garansi dihitung berdasarkan tanggal penyerahan aktual.
 - Klaim dinilai berdasarkan waktu laporan pelanggan.
 
@@ -552,6 +558,9 @@ Aturan:
 | customer_id | BIGINT UNSIGNED | FK, NOT NULL | Pemilik pesanan |
 | received_by | BIGINT UNSIGNED | FK, NOT NULL | Pengguna yang menerima |
 | received_at | TIMESTAMP | NOT NULL | Waktu penerimaan |
+| received_from_name | VARCHAR(100) | NOT NULL | Nama orang yang mengantarkan perangkat |
+| received_from_phone | VARCHAR(20) | NULL | Nomor telepon pengantar |
+| received_from_relationship | VARCHAR(50) | NULL | Hubungan pengantar dengan pelanggan |
 | general_notes | TEXT | NULL | Catatan umum pesanan |
 | created_at | TIMESTAMP | NULL | Waktu dibuat |
 | updated_at | TIMESTAMP | NULL | Waktu diperbarui |
@@ -954,6 +963,8 @@ Aturan:
 - Penerima pihak ketiga harus memiliki izin pelanggan yang terdokumentasi.
 - Setiap handover hanya dapat menerbitkan maksimal satu warranty.
 - Garansi berlaku selama 7 hari kalender sejak penyerahan aktual.
+- Durasi garansi default adalah 7 hari kalender.
+- Ketentuan pengecualian kerusakan, termasuk kerusakan akibat petir, harus dicantumkan dalam ketentuan garansi.
 - Garansi hanya diberikan untuk perbaikan yang memenuhi syarat.
 - Kerusakan akibat petir tidak termasuk cakupan garansi.
 - Klaim dinilai berdasarkan waktu pelaporan pelanggan.
