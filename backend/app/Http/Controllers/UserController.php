@@ -6,12 +6,15 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class UserController extends Controller
 {
+    /**
+     * Menampilkan daftar pengguna.
+     */
     public function index(Request $request): View
     {
         $users = User::with('role')
@@ -28,6 +31,9 @@ class UserController extends Controller
         return view('users.index', compact('users'));
     }
 
+    /**
+     * Menampilkan formulir tambah pengguna.
+     */
     public function create(): View
     {
         $roles = Role::orderBy('name')->get();
@@ -39,6 +45,9 @@ class UserController extends Controller
         ]);
     }
 
+    /**
+     * Menyimpan pengguna baru.
+     */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -50,15 +59,33 @@ class UserController extends Controller
             'is_active' => ['required', 'boolean'],
         ]);
 
-        $validated['password'] = Hash::make($validated['password']);
+        $this->validateAssignableRole(
+            $request,
+            (int) $validated['role_id']
+        );
 
-        User::create($validated);
+        $user = new User();
+
+        $user->fill([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+            'password' => $validated['password'],
+        ]);
+
+        $user->role_id = $validated['role_id'];
+        $user->is_active = $validated['is_active'];
+
+        $user->save();
 
         return redirect()
             ->route('users.index')
             ->with('success', 'Pengguna berhasil ditambahkan.');
     }
 
+    /**
+     * Menampilkan formulir edit pengguna.
+     */
     public function edit(User $user): View
     {
         $roles = Role::orderBy('name')->get();
@@ -69,6 +96,10 @@ class UserController extends Controller
             'isEdit' => true,
         ]);
     }
+
+    /**
+     * Memperbarui data pengguna.
+     */
 
     public function update(Request $request, User $user): RedirectResponse
     {
@@ -86,9 +117,17 @@ class UserController extends Controller
             'is_active' => ['required', 'boolean'],
         ]);
 
-        // Pengguna tidak boleh menonaktifkan atau mengganti role akunnya sendiri.
+        $this->validateAssignableRole(
+            $request,
+            (int) $validated['role_id']
+        );
+
+        /*
+     * Perlindungan akun sendiri.
+     * Pemeriksaan dilakukan sebelum aturan Owner terakhir.
+     */
         if ($request->user()->id === $user->id) {
-            if (!$validated['is_active']) {
+            if (!(bool) $validated['is_active']) {
                 return back()->withErrors([
                     'is_active' => 'Anda tidak dapat menonaktifkan akun sendiri.',
                 ])->withInput();
@@ -101,16 +140,68 @@ class UserController extends Controller
             }
         }
 
-        if (empty($validated['password'])) {
-            unset($validated['password']);
-        } else {
-            $validated['password'] = Hash::make($validated['password']);
+        /*
+     * Perlindungan Owner terakhir.
+     * Sistem harus memiliki minimal satu Owner aktif.
+     */
+        $targetIsActiveOwner = $user->is_active
+            && $user->role?->name === 'Owner';
+
+        $removesActiveOwner = !(bool) $validated['is_active']
+            || (int) $validated['role_id'] !== (int) $user->role_id;
+
+        if ($targetIsActiveOwner && $removesActiveOwner) {
+            $activeOwnerCount = User::whereHas('role', function ($query) {
+                $query->where('name', 'Owner');
+            })
+                ->where('is_active', true)
+                ->count();
+
+            if ($activeOwnerCount <= 1) {
+                throw ValidationException::withMessages([
+                    'role_id' => 'Perubahan ditolak. Sistem harus memiliki minimal satu Owner aktif.',
+                ]);
+            }
         }
 
-        $user->update($validated);
+        $user->fill([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+        ]);
+
+        if (!empty($validated['password'])) {
+            $user->password = $validated['password'];
+        }
+
+        $user->role_id = $validated['role_id'];
+        $user->is_active = $validated['is_active'];
+
+        $user->save();
 
         return redirect()
             ->route('users.index')
             ->with('success', 'Data pengguna berhasil diperbarui.');
+    }
+
+    /**
+     * Memeriksa apakah pengguna boleh memberikan role tertentu.
+     */
+    private function validateAssignableRole(
+        Request $request,
+        int $roleId
+    ): void {
+        $role = Role::findOrFail($roleId);
+
+        if (
+            $role->name === 'Owner'
+            && !$request->user()->role?->permissions()
+                ->where('name', 'settings.manage')
+                ->exists()
+        ) {
+            throw ValidationException::withMessages([
+                'role_id' => 'Anda tidak memiliki izin untuk memberikan role Owner.',
+            ]);
+        }
     }
 }

@@ -313,51 +313,61 @@ Entitas yang digunakan:
 Relasi:
 - Satu service_item dapat memiliki banyak communication_logs.
 - Satu customer_contact dapat terlibat dalam banyak communication_logs.
+- Satu user dapat mencatat banyak communication_logs.
 - Satu service_item dapat memiliki banyak notification_records.
-- Satu customer_contact dapat menerima banyak notification_records.
+- Satu communication_log dapat dikaitkan dengan banyak notification_records, tetapi hubungan tersebut bersifat opsional.
+- Satu user dapat membuat banyak notification_records.
 - Satu service_item dapat memiliki banyak service_handover_records.
+- Satu user dapat mencatat banyak service_handover_records.
 - Setiap service_handover_record dapat memiliki maksimal satu warranty.
+- Satu service_item dapat memiliki banyak warranties.
 - Satu warranty dapat memiliki banyak warranty_claims.
-- Klaim baru dapat merujuk pada klaim sebelumnya.
+- Setiap warranty_claim dicatat oleh satu user dan dapat diputuskan oleh satu user.
 
 Aturan:
 - Komunikasi dan notifikasi dicatat secara terpisah.
+- Komunikasi dapat dikaitkan dengan kontak pelanggan, tetapi kontak tersebut bersifat opsional.
+- Notifikasi menyimpan nama dan nomor telepon penerima secara langsung.
+- Notifikasi dapat dikaitkan dengan communication_log, tetapi hubungan tersebut bersifat opsional.
 - Penyerahan perangkat dicatat per perangkat.
-- Garansi berlaku 7 hari kalender sejak penyerahan aktual.
-- Klaim yang dilaporkan selama masa garansi tetap valid meskipun pemeriksaan dilakukan setelah masa garansi.
+- Garansi berlaku 7 hari kalender sejak penyerahan aktual, sesuai ketentuan bisnis.
+- Klaim yang dilaporkan selama masa garansi tetap dapat diproses meskipun pemeriksaan dilakukan setelah masa garansi.
 - Penyerahan kepada pihak ketiga membutuhkan izin pelanggan.
-- Setiap notifikasi memiliki status PENDING, SENT, atau FAILED.
-- Status SENT menandakan pengiriman berhasil dilakukan oleh layanan pengiriman.
+- Identitas kontak pemberi izin dan metode pemberian izin dicatat jika penyerahan memerlukan otorisasi pihak ketiga.
+- Penyerahan langsung kepada pelanggan tidak memerlukan otorisasi pihak ketiga.
+- Status pengiriman notifikasi menggunakan PENDING, SENT, atau FAILED sesuai hasil proses pengiriman.
 - attempted_at mencatat waktu percobaan pengiriman.
 - delivered_at mencatat waktu keberhasilan penyampaian berdasarkan konfirmasi yang tersedia dari layanan pengiriman.
 - Jika layanan pengiriman tidak menyediakan konfirmasi penerimaan, sistem tidak boleh menganggap pesan sudah benar-benar diterima pelanggan.
 - Perhitungan batas waktu pengambilan menggunakan waktu keberhasilan pengiriman yang dapat diverifikasi.
-- Waktu percobaan pengiriman dan waktu keberhasilan pengiriman dicatat secara terpisah.
-- Batas waktu pengambilan perangkat dihitung berdasarkan keberhasilan penyampaian notifikasi, bukan waktu notifikasi dibuat.
-- Penyerahan kepada pihak ketiga harus memiliki bukti izin dari pelanggan.
-- Identitas kontak pemberi izin dan metode pemberian izin dicatat.
-- Penyerahan langsung kepada pelanggan tidak memerlukan otorisasi pihak ketiga.
-
-
+- Satu handover hanya dapat memiliki maksimal satu warranty.
+- Garansi hanya diberikan jika perangkat memenuhi syarat kelayakan.
+- warranty_claims mencatat pelaporan, pencatatan, dan keputusan klaim garansi.
+- Keputusan klaim menggunakan status PENDING sebagai nilai awal.
+- Riwayat klaim tidak memiliki relasi langsung ke klaim sebelumnya.
 
 Diagram:
 
-```mermaid id="aftersales01"
+```mermaid
 erDiagram
     SERVICE_ITEMS ||--o{ COMMUNICATION_LOGS : has
-    CUSTOMER_CONTACTS ||--o{ COMMUNICATION_LOGS : participates
+    CUSTOMER_CONTACTS o|--o{ COMMUNICATION_LOGS : participates
     USERS ||--o{ COMMUNICATION_LOGS : records
+
     SERVICE_ITEMS ||--o{ NOTIFICATION_RECORDS : receives
-    CUSTOMER_CONTACTS ||--o{ NOTIFICATION_RECORDS : notified
+    COMMUNICATION_LOGS o|--o{ NOTIFICATION_RECORDS : references
     USERS ||--o{ NOTIFICATION_RECORDS : creates
+
     SERVICE_ITEMS ||--o{ SERVICE_HANDOVER_RECORDS : handed_over
     USERS ||--o{ SERVICE_HANDOVER_RECORDS : handles
-    SERVICE_HANDOVER_RECORDS ||--o| WARRANTIES : qualifies_for
-    WARRANTIES ||--o{ WARRANTY_CLAIMS : receives
-    WARRANTY_CLAIMS o|--o{ WARRANTY_CLAIMS : follows
-    USERS o|--o{ WARRANTY_CLAIMS : handles
-```
+    CUSTOMER_CONTACTS o|--o{ SERVICE_HANDOVER_RECORDS : authorizes
 
+    SERVICE_HANDOVER_RECORDS ||--o| WARRANTIES : qualifies_for
+    SERVICE_ITEMS ||--o{ WARRANTIES : has
+    WARRANTIES ||--o{ WARRANTY_CLAIMS : receives
+    USERS ||--o{ WARRANTY_CLAIMS : records
+    USERS o|--o{ WARRANTY_CLAIMS : decides
+```
 
 ### 5.8 Audit Aktivitas Sistem
 
@@ -394,16 +404,22 @@ erDiagram
 
 ### 6.2 Unique Constraint
 
-Kolom atau kombinasi berikut harus unik:
+Kolom atau kombinasi berikut memiliki unique constraint:
 
 - users.email
 - roles.name
 - permissions.name
-- customers tidak memiliki unique constraint pada nama.
 - service_orders.order_number
 - payments.payment_number
-- warranty_claims.claim_number
 - Kombinasi role_permissions.role_id dan permission_id.
+- warranties.handover_record_id.
+- device_categories.name
+- jobs.uuid (unique constraint bawaan Laravel untuk tabel antrean pekerjaan).
+
+Catatan:
+- customers tidak memiliki unique constraint pada nama.
+- Setiap service_handover_record hanya dapat memiliki maksimal satu warranty.
+- warranty_claims tidak memiliki claim_number atau unique constraint khusus untuk nomor klaim.
 
 ### 6.3 Aturan Relasi dan Transaksi
 
@@ -416,24 +432,41 @@ Kolom atau kombinasi berikut harus unik:
 - Total payment_allocations tidak boleh melebihi nominal payment.
 - Total refund tidak boleh melebihi nominal alokasi pembayaran.
 - Satu handover hanya dapat menerbitkan maksimal satu warranty.
+- Notification_records yang memiliki communication_log_id harus merujuk pada communication_log untuk service_item yang sama.
+- Warranty harus merujuk pada service_item yang sama dengan service_handover_record yang terkait.
+- Jika customer_contact_id pada communication_logs diisi, kontak tersebut harus berasal dari customer pemilik service_item.
+- Jika authorized_by_contact_id pada service_handover_records diisi, kontak tersebut harus berasal dari customer pemilik service_item.
 
 ### 6.4 Aturan Biaya dan Garansi
 
 - Nilai uang menggunakan DECIMAL, bukan FLOAT.
 - Biaya aktual dibedakan dari estimasi.
 - Biaya komponen tidak boleh dihitung dua kali.
+- service_item_costs menjadi sumber pencatatan nominal biaya aktual.
+- Biaya komponen yang sudah dicatat dalam service_item_costs tidak boleh dihitung kembali dari service_item_components.
 - Garansi hanya dapat diterbitkan untuk perangkat yang telah selesai diperbaiki dan memenuhi ketentuan garansi.
 - Hasil pengerjaan SUCCESS menjadi salah satu syarat kelayakan garansi.
 - Perangkat dengan hasil pengerjaan FAILED tidak otomatis memperoleh garansi perbaikan.
-- Masa garansi dihitung berdasarkan tanggal penyerahan aktual.
-- Klaim dinilai berdasarkan waktu laporan pelanggan.
+- Kelayakan garansi dicatat melalui is_eligible.
+- Alasan pengecualian atau ketidaklayakan garansi dicatat melalui exclusion_reason.
+- Masa garansi dihitung berdasarkan waktu penyerahan aktual.
+- starts_at dan expires_at digunakan untuk mencatat periode garansi.
+- Klaim dinilai berdasarkan reported_at, yaitu waktu pelanggan melaporkan masalah.
+- Klaim yang dilaporkan selama masa garansi tetap dapat diproses meskipun pemeriksaan dilakukan setelah masa garansi berakhir.
 
 ### 6.5 Aturan Audit dan Retensi
 
-- Riwayat transaksi penting tidak boleh dihapus sembarangan.
-- Audit log tidak boleh menyimpan password atau token.
-- Data historis tetap dapat ditelusuri meskipun akun pengguna atau kontak dinonaktifkan.
-- Penghapusan dan retensi data mengikuti kebijakan penyimpanan sistem.
+- Setiap aktivitas penting yang mengubah data harus dicatat dalam audit_logs.
+- Audit log menyimpan user_id jika aktivitas dilakukan oleh pengguna yang terautentikasi.
+- Jika akun pengguna dihapus, catatan audit tetap dipertahankan dan user_id menjadi NULL.
+- action menjelaskan jenis aktivitas yang dilakukan.
+- entity_type dan entity_id menunjukkan entitas serta data yang terdampak.
+- old_values menyimpan data sebelum perubahan jika tersedia.
+- new_values menyimpan data setelah perubahan jika tersedia.
+- ip_address dan user_agent digunakan sebagai informasi tambahan untuk penelusuran aktivitas.
+- created_at mencatat waktu terjadinya aktivitas audit.
+- Audit log bersifat historis dan tidak boleh diubah atau dihapus melalui fitur operasional aplikasi.
+- Data audit perlu dilindungi dari akses dan perubahan oleh pengguna yang tidak berwenang.
 
 
 ---
@@ -866,18 +899,22 @@ Aturan:
 |---|---|---|---|
 | id | BIGINT UNSIGNED | PK | ID komunikasi |
 | service_item_id | BIGINT UNSIGNED | FK, NOT NULL | Perangkat servis |
-| customer_contact_id | BIGINT UNSIGNED | FK, NOT NULL | Kontak pelanggan |
-| user_id | BIGINT UNSIGNED | FK, NOT NULL | Pengguna pencatat |
+| customer_contact_id | BIGINT UNSIGNED | FK, NULL | Kontak pelanggan terkait |
+| recorded_by | BIGINT UNSIGNED | FK, NOT NULL | Pengguna pencatat |
 | communication_type | VARCHAR(30) | NOT NULL | Jenis komunikasi |
-| direction | VARCHAR(20) | NOT NULL | INBOUND atau OUTBOUND |
+| direction | VARCHAR(20) | NULL | Arah komunikasi |
+| recipient_name | VARCHAR(150) | NULL | Nama penerima |
+| recipient_phone | VARCHAR(30) | NULL | Nomor telepon penerima |
 | message | TEXT | NOT NULL | Isi atau ringkasan komunikasi |
-| communicated_at | TIMESTAMP | NOT NULL | Waktu komunikasi |
-| created_at | TIMESTAMP | NULL | Waktu pencatatan |
+| proof_path | VARCHAR(500) | NULL | Lokasi bukti komunikasi |
+| communicated_at | DATETIME | NOT NULL | Waktu komunikasi |
+| created_at | TIMESTAMP | NULL | Waktu pembuatan data |
+| updated_at | TIMESTAMP | NULL | Waktu pembaruan data |
 
 Foreign key:
-- service_item_id mengacu pada service_items.id.
-- customer_contact_id mengacu pada customer_contacts.id.
-- user_id mengacu pada users.id.
+- service_item_id mengacu pada service_items.id dengan ON DELETE RESTRICT.
+- customer_contact_id mengacu pada customer_contacts.id dengan ON DELETE SET NULL.
+- recorded_by mengacu pada users.id dengan ON DELETE RESTRICT.
 
 #### 7.7.2 Tabel notification_records
 
@@ -885,20 +922,24 @@ Foreign key:
 |---|---|---|---|
 | id | BIGINT UNSIGNED | PK | ID notifikasi |
 | service_item_id | BIGINT UNSIGNED | FK, NOT NULL | Perangkat servis |
-| customer_contact_id | BIGINT UNSIGNED | FK, NOT NULL | Kontak penerima |
+| communication_log_id | BIGINT UNSIGNED | FK, NULL | Referensi komunikasi terkait |
 | created_by | BIGINT UNSIGNED | FK, NOT NULL | Pengguna pembuat |
 | notification_type | VARCHAR(30) | NOT NULL | Jenis notifikasi |
-| channel | VARCHAR(20) | NOT NULL | Saluran pengiriman |
-| delivery_status | VARCHAR(20) | NOT NULL | PENDING, SENT, atau FAILED |
-| attempted_at | TIMESTAMP | NULL | Waktu percobaan pengiriman |
-| delivered_at | TIMESTAMP | NULL | Waktu berhasil disampaikan |
-| notes | TEXT | NULL | Catatan pengiriman |
-| created_at | TIMESTAMP | NOT NULL | Waktu notifikasi dibuat |
+| delivery_status | VARCHAR(20) | NOT NULL, DEFAULT PENDING | Status pengiriman |
+| recipient_name | VARCHAR(150) | NULL | Nama penerima |
+| recipient_phone | VARCHAR(30) | NOT NULL | Nomor telepon penerima |
+| message | TEXT | NOT NULL | Isi notifikasi |
+| proof_path | VARCHAR(500) | NULL | Lokasi bukti pengiriman |
+| attempted_at | DATETIME | NULL | Waktu percobaan pengiriman |
+| delivered_at | DATETIME | NULL | Waktu keberhasilan penyampaian |
+| failure_reason | TEXT | NULL | Alasan kegagalan pengiriman |
+| created_at | TIMESTAMP | NULL | Waktu pembuatan data |
+| updated_at | TIMESTAMP | NULL | Waktu pembaruan data |
 
 Foreign key:
-- service_item_id mengacu pada service_items.id.
-- customer_contact_id mengacu pada customer_contacts.id.
-- created_by mengacu pada users.id.
+- service_item_id mengacu pada service_items.id dengan ON DELETE RESTRICT.
+- communication_log_id mengacu pada communication_logs.id dengan ON DELETE SET NULL.
+- created_by mengacu pada users.id dengan ON DELETE RESTRICT.
 
 #### 7.7.3 Tabel service_handover_records
 
@@ -907,35 +948,45 @@ Foreign key:
 | id | BIGINT UNSIGNED | PK | ID penyerahan |
 | service_item_id | BIGINT UNSIGNED | FK, NOT NULL | Perangkat yang diserahkan |
 | handed_over_by | BIGINT UNSIGNED | FK, NOT NULL | Pengguna yang menyerahkan |
-| recipient_name | VARCHAR(100) | NOT NULL | Nama penerima |
-| recipient_phone | VARCHAR(20) | NULL | Nomor telepon penerima |
-| recipient_type | VARCHAR(20) | NOT NULL | CUSTOMER atau THIRD_PARTY |
+| recipient_name | VARCHAR(150) | NOT NULL | Nama penerima |
+| recipient_phone | VARCHAR(30) | NULL | Nomor telepon penerima |
+| recipient_type | VARCHAR(30) | NOT NULL | Jenis penerima |
 | authorized_by_contact_id | BIGINT UNSIGNED | FK, NULL | Kontak pemberi izin |
-| authorization_method | VARCHAR(20) | NULL | Metode pemberian izin |
-| authorization_notes | TEXT | NULL | Bukti atau catatan otorisasi |
-| condition_at_handover | TEXT | NULL | Kondisi perangkat saat diserahkan |
-| handed_over_at | TIMESTAMP | NOT NULL | Waktu penyerahan aktual |
-| created_at | TIMESTAMP | NULL | Waktu pencatatan |
+| authorization_method | VARCHAR(50) | NULL | Metode pemberian izin |
+| authorization_notes | TEXT | NULL | Catatan otorisasi |
+| proof_path | VARCHAR(500) | NULL | Lokasi bukti penyerahan |
+| handed_over_at | DATETIME | NOT NULL | Waktu penyerahan aktual |
+| notes | TEXT | NULL | Catatan tambahan |
+| created_at | TIMESTAMP | NULL | Waktu pembuatan data |
+| updated_at | TIMESTAMP | NULL | Waktu pembaruan data |
 
 Foreign key:
-- service_item_id mengacu pada service_items.id.
-- handed_over_by mengacu pada users.id.
-- authorized_by_contact_id mengacu pada customer_contacts.id.
+- service_item_id mengacu pada service_items.id dengan ON DELETE RESTRICT.
+- handed_over_by mengacu pada users.id dengan ON DELETE RESTRICT.
+- authorized_by_contact_id mengacu pada customer_contacts.id dengan ON DELETE SET NULL.
 
 #### 7.7.4 Tabel warranties
 
 | Kolom | Tipe Data | Constraint | Keterangan |
 |---|---|---|---|
 | id | BIGINT UNSIGNED | PK | ID garansi |
-| handover_id | BIGINT UNSIGNED | FK, UNIQUE, NOT NULL | Penyerahan terkait |
-| start_date | DATE | NOT NULL | Tanggal mulai garansi |
-| end_date | DATE | NOT NULL | Tanggal berakhir garansi |
-| warranty_days | INT UNSIGNED | DEFAULT 7 | Durasi garansi |
-| terms | TEXT | NULL | Ketentuan garansi |
-| created_at | TIMESTAMP | NULL | Waktu pembuatan |
+| service_item_id | BIGINT UNSIGNED | FK, NOT NULL | Perangkat yang memperoleh garansi |
+| handover_record_id | BIGINT UNSIGNED | FK, UNIQUE, NOT NULL | Penyerahan terkait |
+| starts_at | DATETIME | NOT NULL | Waktu mulai garansi |
+| expires_at | DATETIME | NOT NULL | Waktu berakhir garansi |
+| is_eligible | BOOLEAN | NOT NULL, DEFAULT TRUE | Status kelayakan garansi |
+| exclusion_reason | VARCHAR(255) | NULL | Alasan ketidaklayakan atau pengecualian |
+| created_at | TIMESTAMP | NULL | Waktu pembuatan data |
+| updated_at | TIMESTAMP | NULL | Waktu pembaruan data |
 
 Foreign key:
-- handover_id mengacu pada service_handover_records.id.
+- service_item_id mengacu pada service_items.id dengan ON DELETE RESTRICT.
+- handover_record_id mengacu pada service_handover_records.id dengan ON DELETE RESTRICT.
+
+Constraint tambahan:
+- handover_record_id memiliki unique constraint sehingga satu penyerahan hanya dapat memiliki maksimal satu warranty.
+- Satu service_item dapat memiliki lebih dari satu warranty apabila terdapat beberapa catatan penyerahan yang berbeda.
+- Kesesuaian service_item_id dengan service_item pada handover_record_id harus divalidasi oleh aplikasi.
 
 #### 7.7.5 Tabel warranty_claims
 
@@ -943,35 +994,41 @@ Foreign key:
 |---|---|---|---|
 | id | BIGINT UNSIGNED | PK | ID klaim |
 | warranty_id | BIGINT UNSIGNED | FK, NOT NULL | Garansi terkait |
-| claim_number | VARCHAR(30) | UNIQUE, NOT NULL | Nomor klaim |
-| previous_claim_id | BIGINT UNSIGNED | FK, NULL | Klaim sebelumnya |
-| complaint | TEXT | NOT NULL | Keluhan pelanggan |
-| reported_at | TIMESTAMP | NOT NULL | Waktu klaim dilaporkan |
-| inspection_notes | TEXT | NULL | Catatan pemeriksaan |
-| claim_status | VARCHAR(30) | NOT NULL | Status klaim |
-| handled_by | BIGINT UNSIGNED | FK, NULL | Pengguna penangan klaim |
-| created_at | TIMESTAMP | NULL | Waktu pencatatan |
+| recorded_by | BIGINT UNSIGNED | FK, NOT NULL | Pengguna pencatat klaim |
+| decided_by | BIGINT UNSIGNED | FK, NULL | Pengguna yang memutuskan klaim |
+| reported_at | DATETIME | NOT NULL | Waktu pelanggan melaporkan masalah |
+| recorded_at | DATETIME | NOT NULL | Waktu klaim dicatat |
+| issue_description | TEXT | NOT NULL | Deskripsi masalah |
+| decision | VARCHAR(30) | NOT NULL, DEFAULT PENDING | Keputusan klaim |
+| decided_at | DATETIME | NULL | Waktu keputusan |
+| decision_notes | TEXT | NULL | Catatan keputusan |
+| proof_path | VARCHAR(500) | NULL | Lokasi bukti klaim |
+| created_at | TIMESTAMP | NULL | Waktu pembuatan data |
+| updated_at | TIMESTAMP | NULL | Waktu pembaruan data |
 
 Foreign key:
-- warranty_id mengacu pada warranties.id.
-- previous_claim_id mengacu pada warranty_claims.id.
-- handled_by mengacu pada users.id.
+- warranty_id mengacu pada warranties.id dengan ON DELETE RESTRICT.
+- recorded_by mengacu pada users.id dengan ON DELETE RESTRICT.
+- decided_by mengacu pada users.id dengan ON DELETE RESTRICT.
 
 Aturan:
 - Komunikasi pelanggan dan notifikasi resmi dicatat secara terpisah.
+- customer_contact_id pada communication_logs bersifat opsional.
+- Notifikasi menyimpan nama dan nomor telepon penerima secara langsung.
+- communication_log_id pada notification_records bersifat opsional.
 - Penyerahan perangkat dicatat untuk setiap service_item.
 - Penerima pihak ketiga harus memiliki izin pelanggan yang terdokumentasi.
 - Setiap handover hanya dapat menerbitkan maksimal satu warranty.
-- Garansi berlaku selama 7 hari kalender sejak penyerahan aktual.
-- Durasi garansi default adalah 7 hari kalender.
-- Ketentuan pengecualian kerusakan, termasuk kerusakan akibat petir, harus dicantumkan dalam ketentuan garansi.
-- Garansi hanya diberikan untuk perbaikan yang memenuhi syarat.
-- Kerusakan akibat petir tidak termasuk cakupan garansi.
+- Garansi berlaku selama 7 hari kalender sejak penyerahan aktual, sesuai ketentuan bisnis.
+- Garansi hanya diberikan kepada perangkat yang memenuhi persyaratan kelayakan.
+- Status kelayakan dicatat melalui is_eligible.
+- Alasan pengecualian atau ketidaklayakan dicatat melalui exclusion_reason.
+- Kerusakan akibat petir tidak termasuk cakupan garansi apabila ditetapkan dalam ketentuan garansi.
 - Klaim dinilai berdasarkan waktu pelaporan pelanggan.
 - Klaim yang dilaporkan selama masa garansi tetap dapat diproses meskipun pemeriksaan dilakukan setelah masa garansi berakhir.
 - Satu warranty dapat memiliki beberapa warranty_claims.
-- Klaim baru dapat merujuk pada klaim sebelumnya.
-
+- Keputusan klaim menggunakan PENDING sebagai nilai awal.
+- Riwayat klaim tidak memiliki relasi langsung ke klaim sebelumnya.
 
 ### 7.8 Audit Aktivitas Sistem
 
@@ -986,41 +1043,52 @@ Aturan:
 | entity_id | BIGINT UNSIGNED | NOT NULL | ID data yang terkait |
 | old_values | JSON | NULL | Data sebelum perubahan |
 | new_values | JSON | NULL | Data setelah perubahan |
-| created_at | TIMESTAMP | NOT NULL | Waktu aktivitas |
+| ip_address | VARCHAR(45) | NULL | Alamat IP pengguna |
+| user_agent | TEXT | NULL | Informasi browser atau perangkat |
+| created_at | DATETIME | NOT NULL | Waktu aktivitas |
 
 Foreign key:
-- user_id mengacu pada users.id dan boleh NULL untuk aktivitas sistem otomatis.
+- user_id mengacu pada users.id dengan ON DELETE SET NULL.
+
+Index:
+- audit_entity_idx pada entity_type dan entity_id.
+- audit_user_idx pada user_id.
+- audit_created_idx pada created_at.
 
 Aturan:
 - Audit log mencatat aktivitas penting pengguna dan sistem.
 - old_values menyimpan nilai sebelum perubahan jika diperlukan.
 - new_values menyimpan nilai setelah perubahan jika diperlukan.
-- Password, token, dan informasi autentikasi sensitif tidak boleh dicatat.
-- Audit log bersifat historis dan tidak boleh dihapus melalui operasi biasa.
-- entity_type dan entity_id digunakan sebagai relasi polimorfik sehingga entity_id tidak menggunakan foreign key langsung ke satu tabel tertentu.
-
+- user_id boleh NULL untuk aktivitas sistem otomatis.
+- Jika pengguna dihapus, catatan audit tetap dipertahankan dan user_id menjadi NULL.
+- created_at wajib diisi saat pencatatan aktivitas audit.
+- Audit log digunakan sebagai catatan historis dan tidak boleh diubah melalui fitur operasional aplikasi.
+- Akses terhadap audit log harus dibatasi kepada pengguna yang berwenang.
 
 ---
 
 ## 8. Aturan Implementasi dan Validasi Aplikasi
 
-Beberapa aturan bisnis memerlukan validasi pada level aplikasi
-karena tidak dapat dijamin hanya menggunakan foreign key
-atau unique constraint biasa.
+Beberapa aturan bisnis memerlukan validasi pada level aplikasi karena tidak dapat dijamin hanya menggunakan foreign key atau unique constraint biasa.
 
 ### 8.1 Validasi Relasi
 
 - Diagnosis dan estimasi harus berasal dari service_item yang sama.
 - Kontak pemberi persetujuan harus berasal dari customer pemilik perangkat.
-- Alokasi pembayaran hanya dapat ditujukan kepada perangkat milik customer yang sama.
+- Alokasi pembayaran hanya dapat ditujukan kepada perangkat milik customer yang sama dengan pemilik pembayaran.
 - Kontak pemberi izin penyerahan harus berasal dari customer pemilik perangkat.
+- Jika customer_contact_id pada communication_logs diisi, kontak tersebut harus berasal dari customer pemilik service_item.
+- Jika communication_log_id pada notification_records diisi, communication_log tersebut harus berasal dari service_item yang sama.
+- service_item_id pada warranties harus sesuai dengan service_item yang dimiliki handover_record_id terkait.
 
 ### 8.2 Validasi Transaksi Keuangan
 
 - Total alokasi pembayaran tidak boleh melebihi nominal payment.
-- Total refund yang telah disetujui atau diselesaikan tidak boleh melebihi nominal alokasi.
+- Total refund yang telah disetujui atau diselesaikan tidak boleh melebihi nominal alokasi pembayaran terkait.
 - Proses pencatatan pembayaran, alokasi, dan refund harus menggunakan database transaction.
+- Validasi nominal harus dilakukan sebelum transaksi disimpan.
 - Data transaksi yang telah selesai tidak boleh dihapus melalui operasi biasa.
+- Perubahan atau pembatalan transaksi harus memiliki catatan yang dapat ditelusuri.
 
 ### 8.3 Validasi Alur Servis
 
@@ -1029,13 +1097,20 @@ atau unique constraint biasa.
 - Foto AFTER wajib tersedia sebelum perangkat dinyatakan siap diambil.
 - Perubahan estimasi yang membutuhkan persetujuan harus memperoleh persetujuan baru.
 - Status servis dan riwayat status harus diperbarui secara konsisten.
+- Penggunaan komponen dan pencatatan biaya aktual harus mengacu pada service_item yang benar.
+- Setiap perubahan data penting harus dicatat dalam audit_logs.
 
 ### 8.4 Validasi Penyerahan dan Garansi
 
 - Penyerahan kepada pihak ketiga wajib memiliki bukti izin pelanggan.
 - Garansi hanya diterbitkan untuk perbaikan yang memenuhi syarat.
-- Tanggal mulai garansi mengikuti tanggal penyerahan aktual.
-- Batas waktu pengambilan perangkat dihitung berdasarkan notifikasi berhasil disampaikan.
+- Setiap service_handover_record hanya dapat memiliki maksimal satu warranty.
+- Tanggal mulai garansi mengikuti waktu penyerahan aktual.
+- Masa garansi mengikuti ketentuan bisnis, yaitu 7 hari kalender.
+- Klaim yang dilaporkan selama masa garansi tetap dapat diproses meskipun pemeriksaan dilakukan setelah masa garansi berakhir.
+- Waktu pelaporan klaim harus dicatat secara akurat melalui reported_at.
+- Batas waktu pengambilan perangkat dihitung berdasarkan keberhasilan penyampaian notifikasi yang dapat diverifikasi.
+- Jika layanan pengiriman tidak menyediakan konfirmasi penerimaan, sistem tidak boleh menganggap notifikasi telah diterima pelanggan.
 
 ### 8.5 Validasi dan Retensi Data
 
@@ -1043,3 +1118,6 @@ atau unique constraint biasa.
 - Data historis tetap dipertahankan ketika akun atau kontak dinonaktifkan.
 - Audit log tidak boleh menyimpan password atau token.
 - Penghapusan data historis mengikuti kebijakan retensi sistem.
+- Penghapusan akun pengguna tidak boleh menghilangkan catatan audit.
+- Perubahan terhadap audit log harus dibatasi dan tidak tersedia melalui fitur operasional biasa.
+- Data dan bukti transaksi harus dilindungi dari akses pengguna yang tidak berwenang.

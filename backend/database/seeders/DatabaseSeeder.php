@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,
             RolePermissionSeeder::class,
             OwnerSeeder::class,
+            DeviceCategorySeeder::class,
         ]);
     }
 }

@@ -33,10 +33,11 @@ class AuthenticatedSessionController extends Controller
         if (!Auth::user()->is_active) {
             Auth::logout();
 
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
             return back()
-                ->withErrors([
-                    'email' => 'Akun Anda sedang tidak aktif.',
-                ])
+                ->withErrors(['email' => 'Akun Anda sedang tidak aktif.',])
                 ->onlyInput('email');
         }
 

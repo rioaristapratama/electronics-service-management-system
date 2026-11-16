@@ -19,6 +19,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'service_orders.create', 'description' => 'Membuat pesanan servis'],
             ['name' => 'service_orders.manage', 'description' => 'Mengelola pesanan servis'],
             ['name' => 'diagnoses.manage', 'description' => 'Mengelola diagnosis perangkat'],
+            ['name' => 'estimates.manage', 'description' => 'Mengelola estimasi biaya servis'],
+            ['name' => 'customer_approvals.manage', 'description' => 'Mencatat persetujuan pelanggan'],
             ['name' => 'repairs.manage', 'description' => 'Mengelola proses dan hasil perbaikan'],
             ['name' => 'components.view', 'description' => 'Melihat data komponen'],
             ['name' => 'components.manage', 'description' => 'Mengelola data komponen'],

@@ -14,9 +14,7 @@ use Illuminate\Notifications\Notifiable;
     'name',
     'email',
     'password',
-    'role_id',
     'phone',
-    'is_active',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable

@@ -20,6 +20,8 @@ class RolePermissionSeeder extends Seeder
                 'service_orders.create',
                 'service_orders.manage',
                 'diagnoses.manage',
+                'estimates.manage',
+                'customer_approvals.manage',
                 'repairs.manage',
                 'components.view',
                 'components.manage',
@@ -38,6 +40,8 @@ class RolePermissionSeeder extends Seeder
                 'service_orders.create',
                 'service_orders.manage',
                 'diagnoses.manage',
+                'estimates.manage',
+                'customer_approvals.manage',
                 'components.view',
                 'components.manage',
                 'payments.view',
@@ -61,7 +65,9 @@ class RolePermissionSeeder extends Seeder
                 ->first();
 
             if (!$role) {
-                throw new \RuntimeException("Role {$roleName} tidak ditemukan.");
+                throw new \RuntimeException(
+                    "Role {$roleName} tidak ditemukan."
+                );
             }
 
             foreach ($permissionNames as $permissionName) {
